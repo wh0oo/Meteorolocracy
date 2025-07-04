@@ -8,6 +8,7 @@ import net.minecraft.text.Text;
 import net.minecraft.world.World;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.server.world.ServerWorld;
 
 import java.util.*;
 
@@ -71,14 +72,16 @@ public class WeatherVoteCommand {
             }
         }
 
-        broadcast(server, "Weather vote ongoing. " + votes.size() + "/" + server.getPlayerManager().getPlayerList().size() + " players have voted.");
+        broadcast(server, "Weather vote ongoing. " + votes.size() + "/" + online + " players have voted.");
     }
 
     private static void applyWeather(World world, String weather) {
+        if (!(world instanceof ServerWorld serverWorld)) return;
+
         switch (weather) {
-            case "sun" -> world.setWeather(6000, 0, false, false);
-            case "rain" -> world.setWeather(0, 6000, true, false);
-            case "thunder" -> world.setWeather(0, 6000, true, true);
+            case "sun" -> serverWorld.setWeather(6000, 0, false, false);
+            case "rain" -> serverWorld.setWeather(0, 6000, true, false);
+            case "thunder" -> serverWorld.setWeather(0, 6000, true, true);
         }
     }
 
