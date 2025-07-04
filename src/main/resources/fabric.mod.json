@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "meteorolocracy",
-  "version": "1.0.0",
+  "version": "1.0.0-1.21.7",
   "name": "Meteorolocracy",
   "description": "Players vote to change the weather via /weathervote.",
   "authors": ["wh0oo"],
