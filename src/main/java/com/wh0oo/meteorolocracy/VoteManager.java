@@ -3,8 +3,6 @@ package com.wh0oo.meteorolocracy;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.world.World;
 import net.minecraft.server.world.ServerWorld;
 
@@ -19,8 +17,8 @@ public class VoteManager {
     private static final List<String> VALID_OPTIONS = List.of("sun", "rain", "thunder");
 
     private static boolean voteInProgress = false;
-    private static String currentVoteType = null;
     private static long voteEndTime = 0;
+    private static ScheduledFuture<?> endTask = null;
 
     public static List<String> getValidOptions() {
         return VALID_OPTIONS;
@@ -30,11 +28,17 @@ public class VoteManager {
         UUID playerId = player.getUuid();
         long now = System.currentTimeMillis();
 
+        if (!VALID_OPTIONS.contains(voteType)) {
+            source.sendFeedback(() -> MessageHelper.colored("Invalid vote option: " + voteType, MessageHelper.RED), false);
+            return;
+        }
+
         if (!voteInProgress) {
+            boolean isOp = source.getServer().getPlayerManager().isOperator(player.getGameProfile());
             long lastUsed = lastVoteTimes.getOrDefault(playerId, 0L);
             long cooldownMillis = VoteConfig.getPlayerCooldown() * 1000L;
 
-            if ((now - lastUsed) < cooldownMillis) {
+            if (!isOp && (now - lastUsed) < cooldownMillis) {
                 long wait = (lastUsed + cooldownMillis - now) / 1000;
                 long waitMin = wait / 60;
                 long waitHr = waitMin / 60;
@@ -44,10 +48,7 @@ public class VoteManager {
             }
 
             lastVoteTimes.put(playerId, now);
-            startVote(source.getServer(), voteType);
-        } else if (!voteType.equals(currentVoteType)) {
-            source.sendFeedback(() -> MessageHelper.colored("A vote for " + currentVoteType + " is already in progress.", MessageHelper.YELLOW), false);
-            return;
+            startVote(source.getServer());
         }
 
         votes.put(playerId, voteType);
@@ -72,57 +73,68 @@ public class VoteManager {
         }
 
         int total = source.getServer().getPlayerManager().getPlayerList().size();
-        long voted = votes.values().stream().filter(v -> v.equals(currentVoteType)).count();
-        double percent = (double) voted / total * 100;
         long secondsLeft = (voteEndTime - System.currentTimeMillis()) / 1000;
 
-        source.sendFeedback(() -> MessageHelper.colored("Vote in progress for: " + currentVoteType, MessageHelper.GOLD), false);
-        source.sendFeedback(() -> MessageHelper.colored("Votes: " + voted + "/" + total + " (" + (int) percent + "%)", MessageHelper.GRAY), false);
+        source.sendFeedback(() -> MessageHelper.colored("Vote in progress for weather. Current standings:", MessageHelper.GOLD), false);
+        for (String option : VALID_OPTIONS) {
+            long count = votes.values().stream().filter(v -> v.equals(option)).count();
+            source.sendFeedback(() -> MessageHelper.colored("- " + option + ": " + count + "/" + total + " (" + (int)((double)count/total*100) + "%)", MessageHelper.GRAY), false);
+        }
         source.sendFeedback(() -> MessageHelper.colored("Time remaining: " + secondsLeft + " seconds", MessageHelper.GRAY), false);
     }
 
-    private static void startVote(MinecraftServer server, String voteType) {
+    private static void startVote(MinecraftServer server) {
         voteInProgress = true;
-        currentVoteType = voteType;
         votes.clear();
 
         long duration = VoteConfig.getVoteDuration();
         voteEndTime = System.currentTimeMillis() + duration * 1000L;
 
-        MessageHelper.broadcast(server, "Voting started for weather: " + voteType + ". Use /weathervote " + voteType + " to vote! Voting ends in " + duration + " seconds.", MessageHelper.GOLD);
+        MessageHelper.broadcast(server, "Weather voting is open! Use /weathervote <sun|rain|thunder>. Voting ends in " + duration + " seconds.", MessageHelper.GOLD);
 
         reminders.clear();
         if (duration >= 60)
             reminders.add(scheduler.schedule(() ->
-                MessageHelper.broadcast(server, "Vote for " + voteType + " is still open! 1 minute left.", MessageHelper.YELLOW),
+                MessageHelper.broadcast(server, "Weather vote is still open! 1 minute left.", MessageHelper.YELLOW),
                 duration - 60, TimeUnit.SECONDS));
 
         if (duration >= 30)
             reminders.add(scheduler.schedule(() ->
-                MessageHelper.broadcast(server, "30 seconds left to vote for " + voteType + "!", MessageHelper.YELLOW),
+                MessageHelper.broadcast(server, "30 seconds left to vote!", MessageHelper.YELLOW),
                 duration - 30, TimeUnit.SECONDS));
 
         if (duration >= 10)
             reminders.add(scheduler.schedule(() ->
-                MessageHelper.broadcast(server, "10 seconds left to vote for " + voteType + "!", MessageHelper.YELLOW),
+                MessageHelper.broadcast(server, "10 seconds left to vote!", MessageHelper.YELLOW),
                 duration - 10, TimeUnit.SECONDS));
 
-        scheduler.schedule(() -> endVote(server), duration, TimeUnit.SECONDS);
+        endTask = scheduler.schedule(() -> endVote(server), duration, TimeUnit.SECONDS);
     }
 
     private static void checkVotes(MinecraftServer server) {
         int total = server.getPlayerManager().getPlayerList().size();
-        long matching = votes.values().stream().filter(v -> v.equals(currentVoteType)).count();
+        Map<String, Long> tally = new HashMap<>();
 
-        double percent = (double) matching / total;
+        for (String vote : votes.values()) {
+            tally.put(vote, tally.getOrDefault(vote, 0L) + 1);
+        }
 
-        MessageHelper.broadcast(server, matching + "/" + total + " voted for " + currentVoteType + " (" + (int)(percent * 100) + "%)", MessageHelper.GRAY);
+        for (Map.Entry<String, Long> entry : tally.entrySet()) {
+            String weather = entry.getKey();
+            long count = entry.getValue();
+            double percent = (double) count / total;
 
-        if (percent >= VoteConfig.getVoteThreshold()) {
-            applyWeather(server.getOverworld(), currentVoteType);
-            MessageHelper.broadcast(server, "Vote passed! Weather changed to " + currentVoteType + ".", MessageHelper.GREEN);
-            resetVotes();
-        } else if (VoteConfig.shouldEndEarly() && matching == total) {
+            MessageHelper.broadcast(server, count + "/" + total + " voted for " + weather + " (" + (int)(percent * 100) + "%)", MessageHelper.GRAY);
+
+            if (percent >= VoteConfig.getVoteThreshold()) {
+                applyWeather(server.getOverworld(), weather);
+                MessageHelper.broadcast(server, "Vote passed! Weather changed to " + weather + ".", MessageHelper.GREEN);
+                resetVotes();
+                return;
+            }
+        }
+
+        if (VoteConfig.shouldEndEarly() && votes.size() == total) {
             MessageHelper.broadcast(server, "All players have voted. Vote ended early.", MessageHelper.GRAY);
             endVote(server);
         }
@@ -131,25 +143,20 @@ public class VoteManager {
     private static void endVote(MinecraftServer server) {
         if (!voteInProgress) return;
 
-        int total = server.getPlayerManager().getPlayerList().size();
-        long matching = votes.values().stream().filter(v -> v.equals(currentVoteType)).count();
-        double percent = (double) matching / total;
-
-        if (percent < VoteConfig.getVoteThreshold()) {
-            MessageHelper.broadcast(server, "Vote failed. Not enough players voted for " + currentVoteType + ".", MessageHelper.RED);
-        }
-
+        MessageHelper.broadcast(server, "Vote ended. No option reached majority threshold.", MessageHelper.RED);
         resetVotes();
     }
 
     private static void resetVotes() {
         votes.clear();
         voteInProgress = false;
-        currentVoteType = null;
         voteEndTime = 0;
 
         for (ScheduledFuture<?> r : reminders) r.cancel(false);
         reminders.clear();
+
+        if (endTask != null) endTask.cancel(false);
+        endTask = null;
     }
 
     private static void applyWeather(World world, String weather) {
