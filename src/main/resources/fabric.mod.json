@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "meteorolocracy",
-  "version": "1.0.0-1.21.7",
+  "version": "1.0.1-1.21.9",
   "name": "Meteorolocracy",
   "description": "Players vote to change the weather via /weathervote.",
   "authors": ["wh0oo"],
@@ -18,7 +18,7 @@
   "depends": {
     "fabricloader": ">=0.15.0",
     "fabric": "*",
-    "minecraft": "1.21.7",
+    "minecraft": "1.21.9",
     "fabric-api": "*"
   }
 }
