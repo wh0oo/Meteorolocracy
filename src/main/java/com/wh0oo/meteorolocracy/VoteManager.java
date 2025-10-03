@@ -34,7 +34,7 @@ public class VoteManager {
         }
 
         if (!voteInProgress) {
-            boolean isOp = source.getServer().getPlayerManager().isOperator(player.getGameProfile());
+            boolean isOp = source.hasPermissionLevel(2);
             long lastUsed = lastVoteTimes.getOrDefault(playerId, 0L);
             long cooldownMillis = VoteConfig.getPlayerCooldown() * 1000L;
 
