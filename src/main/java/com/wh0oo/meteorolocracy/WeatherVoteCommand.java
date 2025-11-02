@@ -6,8 +6,8 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
-import static net.minecraft.server.command.CommandManager.literal;
 import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.server.command.CommandManager.literal;
 
 public class WeatherVoteCommand {
 
@@ -34,7 +34,7 @@ public class WeatherVoteCommand {
                     })
                 )
                 .then(literal("reset")
-                    .requires(source -> source.hasPermissionLevel(2))
+                    .requires(source -> source.hasPermission(2)) // updated API (was hasPermissionLevel)
                     .executes(ctx -> {
                         VoteManager.forceReset(ctx.getSource());
                         return 1;
