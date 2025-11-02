@@ -4,7 +4,6 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
 
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -34,7 +33,7 @@ public class WeatherVoteCommand {
                     })
                 )
                 .then(literal("reset")
-                    .requires(source -> source.hasPermission(2)) // updated API (was hasPermissionLevel)
+                    .requires(WeatherVoteCommand::isOpOrConsole)
                     .executes(ctx -> {
                         VoteManager.forceReset(ctx.getSource());
                         return 1;
@@ -47,5 +46,13 @@ public class WeatherVoteCommand {
                     })
                 )
         );
+    }
+
+    private static boolean isOpOrConsole(ServerCommandSource src) {
+        // Console (no entity) is allowed
+        if (src.getEntity() == null) return true;
+        // Only players can be OP
+        if (!(src.getEntity() instanceof ServerPlayerEntity player)) return false;
+        return src.getServer().getPlayerManager().isOperator(player.getGameProfile());
     }
 }
