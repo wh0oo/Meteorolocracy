@@ -33,7 +33,8 @@ public class WeatherVoteCommand {
                     })
                 )
                 .then(literal("reset")
-                    .requires(WeatherVoteCommand::isOpOrConsole)
+                    // Snapshot-safe: gate by permission level instead of removed/changed APIs
+                    .requires(source -> source.getPermissionLevel() >= 2)
                     .executes(ctx -> {
                         VoteManager.forceReset(ctx.getSource());
                         return 1;
@@ -46,17 +47,5 @@ public class WeatherVoteCommand {
                     })
                 )
         );
-    }
-
-    private static boolean isOpOrConsole(ServerCommandSource src) {
-        // Console (no entity) is allowed
-        if (src.getEntity() == null) return true;
-        if (!(src.getEntity() instanceof ServerPlayerEntity player)) return false;
-
-        // Snapshot-safe OP check: entry exists in op list
-        return src.getServer()
-                  .getPlayerManager()
-                  .getOpList()
-                  .get(player.getGameProfile()) != null;
     }
 }
