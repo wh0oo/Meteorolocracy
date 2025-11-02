@@ -34,11 +34,8 @@ public class VoteManager {
         }
 
         if (!voteInProgress) {
-            // Snapshot-safe OP check via op list entry presence
-            boolean isOp = source.getServer()
-                                 .getPlayerManager()
-                                 .getOpList()
-                                 .get(player.getGameProfile()) != null;
+            // Snapshot-safe OP gate: permission level from the command source
+            boolean isOp = source.getPermissionLevel() >= 2;
 
             long lastUsed = lastVoteTimes.getOrDefault(playerId, 0L);
             long cooldownMillis = VoteConfig.getPlayerCooldown() * 1000L;
