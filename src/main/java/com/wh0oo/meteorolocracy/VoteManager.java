@@ -34,7 +34,9 @@ public class VoteManager {
         }
 
         if (!voteInProgress) {
-            boolean isOp = source.hasPermissionLevel(2);
+            // 25w44a+: use hasPermission(int) instead of hasPermissionLevel / isOperator()
+            boolean isOp = source.hasPermission(2);
+
             long lastUsed = lastVoteTimes.getOrDefault(playerId, 0L);
             long cooldownMillis = VoteConfig.getPlayerCooldown() * 1000L;
 
@@ -124,7 +126,7 @@ public class VoteManager {
             long count = entry.getValue();
             double percent = (double) count / total;
 
-            MessageHelper.broadcast(server, count + "/" + total + " voted for " + weather + " (" + (int)(percent * 100) + "%)", MessageHelper.GRAY);
+        MessageHelper.broadcast(server, count + "/" + total + " voted for " + weather + " (" + (int)(percent * 100) + "%)", MessageHelper.GRAY);
 
             if (percent >= VoteConfig.getVoteThreshold()) {
                 applyWeather(server.getOverworld(), weather);
