@@ -51,8 +51,12 @@ public class WeatherVoteCommand {
     private static boolean isOpOrConsole(ServerCommandSource src) {
         // Console (no entity) is allowed
         if (src.getEntity() == null) return true;
-        // Only players can be OP
         if (!(src.getEntity() instanceof ServerPlayerEntity player)) return false;
-        return src.getServer().getPlayerManager().isOperator(player.getGameProfile());
+
+        // Snapshot-safe OP check: entry exists in op list
+        return src.getServer()
+                  .getPlayerManager()
+                  .getOpList()
+                  .get(player.getGameProfile()) != null;
     }
 }
