@@ -34,8 +34,8 @@ public class VoteManager {
         }
 
         if (!voteInProgress) {
-            // Snapshot-safe OP gate: check permission level using hasPermission(int)
-            boolean isOp = source.hasPermission(2);
+            // 25w44a Yarn: Permission level is method_5478()
+            boolean isOp = source.method_5478() >= 2;
 
             long lastUsed = lastVoteTimes.getOrDefault(playerId, 0L);
             long cooldownMillis = VoteConfig.getPlayerCooldown() * 1000L;
