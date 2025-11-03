@@ -38,8 +38,15 @@ public class WeatherVoteCommand {
                     })
                 )
                 .then(CommandManager.literal("reset")
-                    // 25w44a Yarn: Permission level is method_5478()
-                    .requires(source -> source.method_5478() >= 2)
+                    .requires(source -> {
+                        try {
+                            ServerPlayerEntity player = source.getPlayer();
+                            return source.getServer().getPlayerManager().isOperator(player.getGameProfile());
+                        } catch (Exception e) {
+                            // Allow console (which is not a player)
+                            return true;
+                        }
+                    })
                     .executes(context -> {
                         VoteManager.forceReset(context.getSource());
                         return 1;
