@@ -21,16 +21,10 @@ public class WeatherVoteCommand {
                     .executes(ctx -> {
                         String voteType = StringArgumentType.getString(ctx, "type").toLowerCase();
                         ServerCommandSource source = ctx.getSource();
-                        ServerPlayerEntity player;
-                        try {
-                            player = source.getPlayer();
-                        } catch (Exception e) {
-                            source.sendError(MessageHelper.colored("Only players can vote.", MessageHelper.RED));
-                            return 0;
-                        }
+                        ServerPlayerEntity player = source.getPlayer();
 
                         if (!VoteManager.getValidOptions().contains(voteType)) {
-                            source.sendError(MessageHelper.colored("Invalid vote. Use sun, rain, or thunder.", MessageHelper.RED));
+                            source.sendFeedback(() -> MessageHelper.colored("Invalid vote. Use sun, rain, or thunder.", MessageHelper.RED), false);
                             return 0;
                         }
 
@@ -39,7 +33,7 @@ public class WeatherVoteCommand {
                     })
                 )
                 .then(literal("reset")
-                    .requires(source -> source.hasPermission(2))
+                    .requires(source -> source.hasPermissionLevel(2))
                     .executes(ctx -> {
                         VoteManager.forceReset(ctx.getSource());
                         return 1;
