@@ -1,9 +1,9 @@
 package com.wh0oo.meteorolocracy;
 
-import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.World;
 
 import java.util.*;
@@ -29,12 +29,12 @@ public class VoteManager {
         long now = System.currentTimeMillis();
 
         if (!VALID_OPTIONS.contains(voteType)) {
-            source.sendError(MessageHelper.colored("Invalid vote option: " + voteType, MessageHelper.RED));
+            source.sendFeedback(() -> MessageHelper.colored("Invalid vote option: " + voteType, MessageHelper.RED), false);
             return;
         }
 
         if (!voteInProgress) {
-            boolean isOp = source.hasPermission(2);
+            boolean isOp = source.hasPermissionLevel(2);
 
             long lastUsed = lastVoteTimes.getOrDefault(playerId, 0L);
             long cooldownMillis = VoteConfig.getPlayerCooldown() * 1000L;
@@ -44,7 +44,7 @@ public class VoteManager {
                 long waitMin = wait / 60;
                 long waitHr = waitMin / 60;
                 long remMin = waitMin % 60;
-                source.sendError(MessageHelper.colored("You must wait " + waitHr + "h " + remMin + "m before starting another vote.", MessageHelper.RED));
+                source.sendFeedback(() -> MessageHelper.colored("You must wait " + waitHr + "h " + remMin + "m before starting another vote.", MessageHelper.RED), false);
                 return;
             }
 
@@ -59,7 +59,7 @@ public class VoteManager {
 
     public static void forceReset(ServerCommandSource source) {
         if (!voteInProgress) {
-            source.sendError(MessageHelper.colored("There is no active weather vote to reset.", MessageHelper.RED));
+            source.sendFeedback(() -> MessageHelper.colored("There is no active weather vote to reset.", MessageHelper.RED), false);
             return;
         }
 
