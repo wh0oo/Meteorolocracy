@@ -1,10 +1,10 @@
 package com.wh0oo.meteorolocracy;
 
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.world.World;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -24,18 +24,17 @@ public class VoteManager {
         return VALID_OPTIONS;
     }
 
-    public static void handleVoteRequest(ServerPlayerEntity player, String voteType, ServerCommandSource source) {
-        UUID playerId = player.getUuid();
+    public static void handleVoteRequest(ServerPlayer player, String voteType, CommandSourceStack source) {
+        UUID playerId = player.getUUID();
         long now = System.currentTimeMillis();
 
         if (!VALID_OPTIONS.contains(voteType)) {
-            source.sendFeedback(() -> MessageHelper.colored("Invalid vote option: " + voteType, MessageHelper.RED), false);
+            source.sendFailure(MessageHelper.colored("Invalid vote option: " + voteType, MessageHelper.RED));
             return;
         }
 
         if (!voteInProgress) {
-            // Use player op check for 25w44a+ with Yarn mappings
-            boolean isOp = source.getServer().getPlayerManager().isOperator(player.getGameProfile());
+            boolean isOp = source.hasPermission(2);
 
             long lastUsed = lastVoteTimes.getOrDefault(playerId, 0L);
             long cooldownMillis = VoteConfig.getPlayerCooldown() * 1000L;
@@ -45,7 +44,7 @@ public class VoteManager {
                 long waitMin = wait / 60;
                 long waitHr = waitMin / 60;
                 long remMin = waitMin % 60;
-                source.sendFeedback(() -> MessageHelper.colored("You must wait " + waitHr + "h " + remMin + "m before starting another vote.", MessageHelper.RED), false);
+                source.sendFailure(MessageHelper.colored("You must wait " + waitHr + "h " + remMin + "m before starting another vote.", MessageHelper.RED));
                 return;
             }
 
@@ -58,9 +57,9 @@ public class VoteManager {
         checkVotes(source.getServer());
     }
 
-    public static void forceReset(ServerCommandSource source) {
+    public static void forceReset(CommandSourceStack source) {
         if (!voteInProgress) {
-            source.sendFeedback(() -> MessageHelper.colored("There is no active weather vote to reset.", MessageHelper.RED), false);
+            source.sendFailure(MessageHelper.colored("There is no active weather vote to reset.", MessageHelper.RED));
             return;
         }
 
@@ -68,21 +67,21 @@ public class VoteManager {
         MessageHelper.broadcast(source.getServer(), "The active weather vote has been cancelled by an operator.", MessageHelper.RED);
     }
 
-    public static void showStatus(ServerCommandSource source) {
+    public static void showStatus(CommandSourceStack source) {
         if (!voteInProgress) {
-            source.sendFeedback(() -> MessageHelper.colored("No vote is currently in progress.", MessageHelper.GRAY), false);
+            source.sendSuccess(() -> MessageHelper.colored("No vote is currently in progress.", MessageHelper.GRAY), false);
             return;
         }
 
-        int total = source.getServer().getPlayerManager().getPlayerList().size();
+        int total = source.getServer().getPlayerList().size();
         long secondsLeft = (voteEndTime - System.currentTimeMillis()) / 1000;
 
-        source.sendFeedback(() -> MessageHelper.colored("Vote in progress for weather. Current standings:", MessageHelper.GOLD), false);
+        source.sendSuccess(() -> MessageHelper.colored("Vote in progress for weather. Current standings:", MessageHelper.GOLD), false);
         for (String option : VALID_OPTIONS) {
             long count = votes.values().stream().filter(v -> v.equals(option)).count();
-            source.sendFeedback(() -> MessageHelper.colored("- " + option + ": " + count + "/" + total + " (" + (int)((double)count/total*100) + "%)", MessageHelper.GRAY), false);
+            source.sendSuccess(() -> MessageHelper.colored("- " + option + ": " + count + "/" + total + " (" + (int)((double)count/total*100) + "%)", MessageHelper.GRAY), false);
         }
-        source.sendFeedback(() -> MessageHelper.colored("Time remaining: " + secondsLeft + " seconds", MessageHelper.GRAY), false);
+        source.sendSuccess(() -> MessageHelper.colored("Time remaining: " + secondsLeft + " seconds", MessageHelper.GRAY), false);
     }
 
     private static void startVote(MinecraftServer server) {
@@ -114,7 +113,7 @@ public class VoteManager {
     }
 
     private static void checkVotes(MinecraftServer server) {
-        int total = server.getPlayerManager().getPlayerList().size();
+        int total = server.getPlayerList().size();
         Map<String, Long> tally = new HashMap<>();
 
         for (String vote : votes.values()) {
@@ -129,7 +128,7 @@ public class VoteManager {
             MessageHelper.broadcast(server, count + "/" + total + " voted for " + weather + " (" + (int)(percent * 100) + "%)", MessageHelper.GRAY);
 
             if (percent >= VoteConfig.getVoteThreshold()) {
-                applyWeather(server.getOverworld(), weather);
+                applyWeather(server.overworld(), weather);
                 MessageHelper.broadcast(server, "Vote passed! Weather changed to " + weather + ".", MessageHelper.GREEN);
                 resetVotes();
                 return;
@@ -161,13 +160,13 @@ public class VoteManager {
         endTask = null;
     }
 
-    private static void applyWeather(World world, String weather) {
-        if (!(world instanceof ServerWorld serverWorld)) return;
+    private static void applyWeather(Level level, String weather) {
+        if (!(level instanceof ServerLevel serverLevel)) return;
 
         switch (weather) {
-            case "sun" -> serverWorld.setWeather(6000, 0, false, false);
-            case "rain" -> serverWorld.setWeather(0, 6000, true, false);
-            case "thunder" -> serverWorld.setWeather(0, 6000, true, true);
+            case "sun" -> serverLevel.setWeatherParameters(6000, 0, false, false);
+            case "rain" -> serverLevel.setWeatherParameters(0, 6000, true, false);
+            case "thunder" -> serverLevel.setWeatherParameters(0, 6000, true, true);
         }
     }
 }
