@@ -34,7 +34,8 @@ public class VoteManager {
         }
 
         if (!voteInProgress) {
-            boolean isOp = source.getPermissionLevel() >= 2;
+            // VTPS-style permission check
+            boolean isOp = source.hasPermissionLevel(2);
 
             long lastUsed = lastVoteTimes.getOrDefault(playerId, 0L);
             long cooldownMillis = VoteConfig.getPlayerCooldown() * 1000L;
@@ -79,7 +80,8 @@ public class VoteManager {
         source.sendFeedback(() -> MessageHelper.colored("Vote in progress for weather. Current standings:", MessageHelper.GOLD), false);
         for (String option : VALID_OPTIONS) {
             long count = votes.values().stream().filter(v -> v.equals(option)).count();
-            source.sendFeedback(() -> MessageHelper.colored("- " + option + ": " + count + "/" + total + " (" + (int)((double)count/total*100) + "%)", MessageHelper.GRAY), false);
+            int pct = total == 0 ? 0 : (int) ((double) count / total * 100);
+            source.sendFeedback(() -> MessageHelper.colored("- " + option + ": " + count + "/" + total + " (" + pct + "%)", MessageHelper.GRAY), false);
         }
         source.sendFeedback(() -> MessageHelper.colored("Time remaining: " + secondsLeft + " seconds", MessageHelper.GRAY), false);
     }
@@ -123,7 +125,7 @@ public class VoteManager {
         for (Map.Entry<String, Long> entry : tally.entrySet()) {
             String weather = entry.getKey();
             long count = entry.getValue();
-            double percent = (double) count / total;
+            double percent = total == 0 ? 0 : (double) count / total;
 
             MessageHelper.broadcast(server, count + "/" + total + " voted for " + weather + " (" + (int)(percent * 100) + "%)", MessageHelper.GRAY);
 
