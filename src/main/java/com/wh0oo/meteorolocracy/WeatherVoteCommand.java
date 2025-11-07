@@ -33,7 +33,7 @@ public class WeatherVoteCommand {
                     })
                 )
                 .then(literal("reset")
-                    .requires(source -> source.hasPermissionLevel(2))
+                    .requires(source -> source.getPermissionLevel() >= 2)
                     .executes(ctx -> {
                         VoteManager.forceReset(ctx.getSource());
                         return 1;
